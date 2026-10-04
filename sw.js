@@ -1,4 +1,4 @@
-const CACHE = 'el-leon-v1';
+const CACHE = 'el-leon-v2';
 const ASSETS = ['./Base.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
