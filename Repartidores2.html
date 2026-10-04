@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App Cadetes | El León</title>
+    
+    <meta name="theme-color" content="#d4af37">
+    <link rel="manifest" href="manifest_repartidor.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+    <style>
+        :root { 
+            --dorado: #d4af37; --rojo: #D32F2F; --azul: #1976D2; --verde: #25D366; 
+            --negro-puro: #050505; --negro-card: #121212; --blanco: #ffffff; 
+        }
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+        body { background-color: var(--negro-puro); color: var(--blanco); font-family: 'Poppins', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; overflow-x: hidden; background-image: radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.05) 0%, transparent 70%); }
+        
+        #login-screen, #app-screen { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px;}
+        #login-screen { justify-content: center; height: 100vh; }
+        #app-screen { display: none; padding-top: 30px; min-height: 100vh; padding-bottom: 40px;}
+
+        .logo-box { margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+        .logo-box i { font-size: 4.5rem; color: var(--dorado); margin-bottom: 10px; text-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+        .header-title { font-family: 'Bebas Neue', cursive; font-size: 3rem; color: var(--blanco); margin: 0; letter-spacing: 2px; }
+        
+        .card { background: linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.9)); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 20px; padding: 30px 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 20px;}
+        
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-label { font-family: 'Bebas Neue', cursive; color: var(--dorado); font-size: 1.2rem; margin-bottom: 5px; display: block; letter-spacing: 1px; }
+        .input-field { width: 100%; background: #080808; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; font-family: 'Poppins', sans-serif; font-size: 1rem; outline: none; text-transform: lowercase; }
+        .input-field:focus { border-color: var(--dorado); }
+
+        .btn { width: 100%; padding: 18px; border-radius: 15px; border: none; font-family: 'Bebas Neue', cursive; font-size: 1.5rem; cursor: pointer; letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; }
+        .btn-login { background: linear-gradient(45deg, var(--dorado), #b8962e); color: black; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);}
+        .error-msg { color: var(--rojo); font-size: 0.85rem; margin-top: 15px; display: none; background: rgba(211,47,47,0.1); padding: 10px; border-radius: 8px;}
+
+        /* --- RADAR DE VIAJES --- */
+        #radar-container { width: 100%; max-width: 400px; display: none; }
+        .viaje-oferta { background: linear-gradient(145deg, #111, #050505); border: 2px solid var(--dorado); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 0 20px rgba(212, 175, 55, 0.2); animation: pulseRadar 2s infinite; text-align: left;}
+        @keyframes pulseRadar { 0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); } 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); } }
+        
+        .oferta-titulo { font-family: 'Bebas Neue'; color: var(--dorado); font-size: 1.8rem; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        .oferta-direccion { font-size: 1rem; color: #ccc; margin: 0 0 8px 0; line-height: 1.4;}
+        .oferta-precio { font-family: 'Bebas Neue'; font-size: 2.2rem; color: var(--verde); margin: 15px 0; text-align: center;}
+        
+        .btn-aceptar { background: linear-gradient(45deg, var(--verde), #128C7E); color: white; width: 100%; padding: 15px; border-radius: 12px; font-family: 'Bebas Neue'; font-size: 1.6rem; border: none; cursor: pointer; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); transition: transform 0.2s;}
+        .btn-aceptar:active { transform: scale(0.95); }
+
+        /* --- INFO VIAJE EN CURSO --- */
+        #direccion-viaje-box { display: none; width: 100%; max-width: 400px; background: linear-gradient(145deg, #121212, #1a1a1a); border: 2px solid var(--dorado); padding: 15px 20px; border-radius: 15px; margin-bottom: 15px; text-align: left; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.1); animation: slideDown 0.4s ease; }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* --- MAPA DEL CADETE --- */
+        #map-container { width: 100%; max-width: 400px; height: 45vh; border-radius: 20px; overflow: hidden; display: none; border: 2px solid var(--dorado); margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.8); flex-shrink: 0; animation: fadeIn 0.5s ease;}
+        #map { width: 100%; height: 100%; background: #222;}
+        .leaflet-control-attribution, .leaflet-routing-container { display: none !important; }
+
+        /* BOTONES DE ESTADO Y CHAT */
+        .status-text { font-size: 1rem; font-weight: 700; margin-bottom: 15px; color: #bbb; text-align: center;}
+        .coords { background: #000; padding: 10px; border-radius: 10px; font-family: monospace; color: var(--dorado); margin-bottom: 15px; font-size: 0.8rem; border: 1px solid #333; text-align: center;}
+        
+        .btn-start { background: linear-gradient(45deg, #333, #222); color: var(--dorado); border: 1px solid var(--dorado); display: none; padding: 15px; font-size: 1.4rem;}
+        .btn-pickup { background: linear-gradient(45deg, var(--azul), #1565C0); color: white; display: none; box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3); padding: 15px; font-size: 1.4rem;}
+        .btn-stop { background: linear-gradient(45deg, var(--verde), #1b5e20); color: white; display: none; box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); padding: 15px; font-size: 1.4rem;}
+        
+        .btn-chat-cadete { background: #111; color: white; border: 1px solid #444; display: none; position: relative; padding: 15px; font-size: 1.3rem; margin-top: 10px;}
+        .badge-chat { position: absolute; top: -5px; right: -5px; background: var(--rojo); color: white; width: 25px; height: 25px; border-radius: 50%; font-size: 0.9rem; display: none; align-items: center; justify-content: center; font-family: 'Poppins'; font-weight: bold; border: 2px solid #1a1a1a; animation: pulseBadge 1s infinite; }
+
+        /* --- MODAL DEL CHAT --- */
+        #chat-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: #121212; z-index: 2000; flex-direction: column; border-top: 2px solid var(--dorado); border-radius: 25px 25px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); }
+        .chat-header { padding: 15px 20px; background: #0a0a0a; border-radius: 25px 25px 0 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .chat-header h3 { margin: 0; font-family: 'Bebas Neue'; font-size: 1.8rem; color: var(--dorado); display: flex; align-items: center; gap: 10px;}
+        .btn-cerrar-chat { background: none; border: none; color: white; font-size: 2rem; cursor: pointer; line-height: 1; }
+        #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #111; }
+        .msg-bubble { padding: 12px 16px; border-radius: 18px; max-width: 80%; font-size: 0.9rem; line-height: 1.4; position: relative; word-wrap: break-word;}
+        .msg-cadete { align-self: flex-end; background: #222; color: white; border-bottom-right-radius: 5px; border: 1px solid #444;}
+        .msg-cliente { align-self: flex-start; background: var(--dorado); color: black; border-bottom-left-radius: 5px; }
+        .chat-input-area { padding: 20px; background: #0a0a0a; display: flex; flex-direction: column; gap: 12px; border-top: 1px solid #333; padding-bottom: 30px;}
+        .btn-quick { background: #222; color: white; border: 1px solid #444; padding: 14px; border-radius: 12px; font-family: 'Poppins'; font-size: 0.9rem; cursor: pointer; text-align: left; display: flex; gap: 12px; align-items: center;}
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="logo-box">
+            <i class="fas fa-shield-alt"></i>
+            <h1 class="header-title">EL LEÓN <span style="color:var(--dorado)">CADETES</span></h1>
+        </div>
+        <div class="card">
+            <div class="input-group">
+                <label class="input-label"><i class="fas fa-id-badge"></i> Tu Usuario</label>
+                <input type="text" id="apellido" class="input-field" placeholder="Ej: quintero">
+            </div>
+            <div class="input-group">
+                <label class="input-label"><i class="fas fa-lock"></i> Contraseña</label>
+                <input type="password" id="password" class="input-field" placeholder="••••••">
+            </div>
+            <button class="btn btn-login" id="btnLogin"><i class="fas fa-sign-in-alt"></i> INGRESAR AL SISTEMA</button>
+            <div class="error-msg" id="login-error"><i class="fas fa-exclamation-triangle"></i> Usuario no registrado o clave incorrecta.</div>
+        </div>
+    </div>
+
+    <div id="app-screen">
+        <h2 id="display-nombre" style="font-family: 'Bebas Neue'; font-size: 2.2rem; margin: 0 0 15px 0; color: var(--blanco);"></h2>
+        
+        <div class="card" id="turno-box" style="margin-bottom: 20px; width: 100%; max-width: 400px; padding: 20px; display: none; justify-content: space-between; align-items: center;">
+            <div style="text-align: left;">
+                <h3 style="margin: 0; font-family: 'Bebas Neue'; font-size: 1.5rem; color: #bbb;" id="turno-status">🔴 FUERA DE TURNO</h3>
+                <p style="margin: 0; font-size: 0.8rem; color: #666;" id="turno-desc">No recibirás viajes.</p>
+            </div>
+            <button id="btnToggleTurno" style="background: var(--verde); color: white; border: none; padding: 12px 20px; border-radius: 12px; font-family: 'Bebas Neue'; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);">CONECTARME</button>
+        </div>
+
+        <div id="radar-container"></div>
+
+        <div id="direccion-viaje-box">
+            <div style="color: var(--dorado); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; font-weight: bold;" id="label-destino"></div>
+            <div id="texto-direccion-viaje" style="font-size: 1.1rem; color: white; line-height: 1.4;">...</div>
+        </div>
+
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+
+        <div class="card" id="trip-card" style="margin-bottom: 0; width: 100%; max-width: 400px; display: none;">
+            <div class="status-text" id="estado">🟢 En base. Esperando pedido...</div>
+            <div class="coords" id="coordenadas">GPS: Apagado</div>
+
+            <button class="btn btn-start" id="btnIniciar"><i class="fas fa-route"></i> YENDO AL PUNTO A (RETIRO)</button>
+            <button class="btn btn-pickup" id="btnRetirado"><i class="fas fa-box"></i> PAQUETE RETIRADO</button>
+            <button class="btn btn-stop" id="btnFinalizar"><i class="fas fa-flag-checkered"></i> ENTREGADO AL CLIENTE</button>
+            
+            <button class="btn btn-chat-cadete" id="btnChatCadete" onclick="abrirChatCadete()">
+                <i class="fas fa-comments"></i> CHAT CON CLIENTE
+                <div class="badge-chat" id="badgeChat">!</div>
+            </button>
+        </div>
+    </div>
+
+    <div id="chat-modal">
+        <div class="chat-header">
+            <h3><i class="fas fa-comment-dots"></i> Mensajes del Cliente</h3>
+            <button class="btn-cerrar-chat" onclick="cerrarChatCadete()">&times;</button>
+        </div>
+        <div id="chat-messages"><div style="text-align: center; color: #666; font-size: 0.8rem; margin-top: 10px;">Modo Moto Seguro.</div></div>
+        <div class="chat-input-area">
+            <p style="margin:0; font-size:0.8rem; color:#bbb; text-align: center;">Respuestas Rápidas (Un Toque)</p>
+            <button class="btn-quick" onclick="enviarMensajeRapido('👋 Hola, ya estoy en la puerta de origen/destino.')"><i class="fas fa-map-marker-alt"></i> Ya estoy en la puerta</button>
+            <button class="btn-quick" onclick="enviarMensajeRapido('❓ No encuentro el domicilio exacto, ¿me pasas una referencia o color de casa?')"><i class="fas fa-question-circle"></i> Pedir referencia de fachada</button>
+            <button class="btn-quick" onclick="enviarMensajeRapido('🔔 Estoy tocando timbre y no me atienden.')"><i class="fas fa-bell"></i> Toco y no salen</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getDatabase, ref, update, onValue, push, off, get, remove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyCJxlyB2mP05kfMhL_AhZPTE_IHOvVxIH4", authDomain: "burger-piola-tracking.firebaseapp.com", databaseURL: "https://burger-piola-tracking-default-rtdb.firebaseio.com", projectId: "burger-piola-tracking", storageBucket: "burger-piola-tracking.firebasestorage.app", messagingSenderId: "399109949329", appId: "1:399109949329:web:3fd6dbeeaa4dc2a5773c30" };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Variables Globales
+        let watchId = null; let idCadete = ""; let nombreCadete = ""; let motoCadete = ""; 
+        let viajeActual = ""; let origenCliente = ""; let destinoCliente = ""; 
+        let origenLatLng = null; let destinoLatLng = null;
+        let primerCargaChat = true; let wakeLock = null;
+        let estadoCadete = "desconectado"; let estadoRuta = "ninguna"; let online = false; 
+
+        // Mapa
+        let mapCadete = null; let markerCadete, markerPunto, routingControl;
+        const baseFija = L.latLng(-33.131058, -64.340524);
+        
+        const iMoto = L.divIcon({ html: `<div style="background: var(--dorado); color: black; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; font-size: 16px;"><i class="fas fa-motorcycle"></i></div>`, className: '', iconSize: [35, 35] });
+        const iPunto = L.divIcon({ html: `<div style="background: var(--rojo); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; font-size: 16px;"><i class="fas fa-map-pin"></i></div>`, className: '', iconSize: [35, 35] });
+
+        // WakeLock
+        async function solicitarPantallaEncendida() { try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch (err) {} }
+        function liberarPantalla() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); } }
+        document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') { solicitarPantallaEncendida(); } });
+
+        // Función auxiliar para separar direcciones origen/destino
+        function separarDirecciones(ped) {
+            let ori = ped.origen || "";
+            let des = ped.destino || "";
+
+            if (!ori && ped.direccion) {
+                if (ped.direccion.includes(" hasta ")) {
+                    const partes = ped.direccion.split(" hasta ");
+                    ori = partes[0].trim();
+                    des = partes[1].trim();
+                } else {
+                    ori = "Punto de Retiro";
+                    des = ped.direccion.trim();
+                }
+            }
+            return {
+                origen: ori || "Punto de Retiro",
+                destino: des || (ped.direccion || "Destino")
+            };
+        }
+
+        // --- SISTEMA DE AUTO-LOGIN ---
+        window.onload = () => {
+            const savedUser = localStorage.getItem('cadete_user');
+            const savedPass = localStorage.getItem('cadete_pass');
+            if (savedUser && savedPass) {
+                document.getElementById('apellido').value = savedUser;
+                document.getElementById('password').value = savedPass;
+                document.getElementById('btnLogin').click();
+            }
+        };
+
+        // --- 1. LOGIN CONECTADO A FIREBASE ---
+        document.getElementById('btnLogin').addEventListener('click', () => {
+            const apellido = document.getElementById('apellido').value.toLowerCase().trim();
+            const pass = document.getElementById('password').value;
+            const btn = document.getElementById('btnLogin');
+
+            if(!apellido || !pass) return;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> VALIDANDO...'; btn.disabled = true;
+
+            get(ref(db, 'cadetes_autorizados/' + apellido)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const datos = snapshot.val();
+                    if (datos.clave.toLowerCase() === pass.toLowerCase()) {
+                        
+                        localStorage.setItem('cadete_user', apellido);
+                        localStorage.setItem('cadete_pass', pass);
+
+                        idCadete = apellido; nombreCadete = datos.nombre; motoCadete = datos.moto;
+                        
+                        document.getElementById('display-nombre').innerHTML = `HOLA, ${nombreCadete.toUpperCase()}<br><span style="font-size: 1rem; color: var(--dorado); font-family: 'Poppins'; font-weight: normal;"><i class="fas fa-motorcycle"></i> ${motoCadete}</span>`;
+                        document.getElementById('login-screen').style.display = 'none';
+                        document.getElementById('app-screen').style.display = 'flex';
+                        
+                        get(ref(db, 'repartidores/' + idCadete)).then((snapStatus) => {
+                            if(snapStatus.exists()) { estadoCadete = snapStatus.val().estado; online = true; } 
+                            else { estadoCadete = "desconectado"; online = false; }
+                            
+                            document.getElementById('turno-box').style.display = 'flex';
+                            actualizarUITurno();
+                            
+                            if (!mapCadete) {
+                                mapCadete = L.map('map').setView(baseFija, 14);
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapCadete);
+                            }
+                            
+                            if (estadoCadete === "asignado" || estadoCadete === "yendo_al_local" || estadoCadete === "en_camino") {
+                                recuperarViajeActivo();
+                            } else {
+                                escucharRadar();
+                            }
+
+                        });
+                    } else { document.getElementById('login-error').style.display = 'block'; btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> INGRESAR AL SISTEMA'; btn.disabled = false;}
+                } else { document.getElementById('login-error').style.display = 'block'; btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> INGRESAR AL SISTEMA'; btn.disabled = false;}
+            }).catch(() => { alert("Error de conexión al verificar usuario."); btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> INGRESAR AL SISTEMA'; btn.disabled = false; });
+        });
+
+        // --- SISTEMA DE TURNO Y ENCENDIDO DE GPS GLOBAL ---
+        function actualizarUITurno() {
+            const btn = document.getElementById('btnToggleTurno'); const status = document.getElementById('turno-status'); const desc = document.getElementById('turno-desc'); const radar = document.getElementById('radar-container');
+            if (online) {
+                status.innerHTML = "🟢 TURNO ACTIVO"; status.style.color = "var(--verde)"; desc.innerText = "Transmitiendo ubicación y buscando viajes...";
+                btn.innerHTML = "FINALIZAR"; btn.style.background = "var(--rojo)"; btn.style.boxShadow = "none";
+                if(estadoCadete === "inactivo") radar.style.display = "block";
+            } else {
+                status.innerHTML = "🔴 FUERA DE TURNO"; status.style.color = "#bbb"; desc.innerText = "No recibirás viajes ni transmitirás ubicación.";
+                btn.innerHTML = "CONECTARME"; btn.style.background = "var(--verde)"; btn.style.boxShadow = "0 4px 10px rgba(37, 211, 102, 0.3)";
+                radar.style.display = "none";
+            }
+        }
+
+        document.getElementById('btnToggleTurno').addEventListener('click', () => {
+            if(online) {
+                if(estadoCadete !== "inactivo" && estadoCadete !== "desconectado") return alert("No puedes finalizar tu turno en medio de un viaje.");
+                online = false; estadoCadete = "desconectado";
+                remove(ref(db, 'repartidores/' + idCadete)); 
+                if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; } 
+                liberarPantalla();
+                document.getElementById('coordenadas').innerHTML = "GPS: Apagado";
+                actualizarUITurno();
+            } else {
+                online = true; estadoCadete = "inactivo";
+                update(ref(db, 'repartidores/' + idCadete), { estado: "inactivo", nombre: nombreCadete, moto: motoCadete });
+                solicitarPantallaEncendida();
+                if (!navigator.geolocation) { alert("Tu dispositivo no tiene GPS o está denegado."); } 
+                else { if (!watchId) { watchId = navigator.geolocation.watchPosition(exitoGPS, errorGPS, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }); } }
+                actualizarUITurno();
+            }
+        });
+
+        // --- FUNCIONES DEL CHAT ---
+        window.abrirChatCadete = function() { document.getElementById('chat-modal').style.display = 'flex'; document.getElementById('badgeChat').style.display = 'none'; const box = document.getElementById('chat-messages'); box.scrollTop = box.scrollHeight; };
+        window.cerrarChatCadete = function() { document.getElementById('chat-modal').style.display = 'none'; };
+        window.enviarMensajeRapido = function(texto) { if (viajeActual === "") return; push(ref(db, 'chats_pedidos/' + viajeActual), { emisor: 'cadete', texto: texto, timestamp: Date.now() }); cerrarChatCadete(); };
+
+        function escucharRadar() {
+            onValue(ref(db, 'bolsa_pedidos'), (snapshot) => {
+                const radar = document.getElementById('radar-container'); radar.innerHTML = ""; 
+                if(!online || estadoCadete !== "inactivo" || !snapshot.exists()) return;
+
+                const pedidos = snapshot.val();
+                Object.keys(pedidos).forEach(key => {
+                    const ped = pedidos[key];
+                    if(ped.estado === "pendiente") {
+                        const div = document.createElement('div'); div.className = "viaje-oferta";
+                        
+                        // Separar origen y destino de forma limpia
+                        const rutas = separarDirecciones(ped);
+                        const safeOri = rutas.origen.replace(/'/g, "");
+                        const safeDes = rutas.destino.replace(/'/g, "");
+
+                        div.innerHTML = `
+                            <h3 class="oferta-titulo"><i class="fas fa-bolt"></i> NUEVO VIAJE</h3>
+                            <div style="margin-bottom: 15px;">
+                                <p class="oferta-direccion"><strong style="color:var(--rojo);">A:</strong> ${safeOri}</p>
+                                <p class="oferta-direccion"><strong style="color:var(--azul);">B:</strong> ${safeDes}</p>
+                            </div>
+                            <p class="oferta-precio">Cobra: $${ped.precio}</p>
+                            <button class="btn-aceptar" onclick="aceptarViaje('${ped.codigo}', '${safeOri}', '${safeDes}', ${ped.latOri || 0}, ${ped.lngOri || 0}, ${ped.latDes || 0}, ${ped.lngDes || 0})">ACEPTAR VIAJE</button>
+                        `;
+                        radar.appendChild(div);
+                    }
+                });
+            });
+        }
+
+        // --- ACEPTAR VIAJE Y ACTUALIZAR BASE DE DATOS ---
+        window.aceptarViaje = function(codigo, origen, destino, latOri, lngOri, latDes, lngDes) {
+            update(ref(db, 'bolsa_pedidos/' + codigo), { estado: "asignado", repartidor: idCadete });
+            update(ref(db, 'repartidores/' + idCadete), { estado: "asignado" });
+            restaurarUI(codigo, origen, destino, latOri, lngOri, latDes, lngDes, "asignado");
+        };
+
+        // --- SISTEMA INTELIGENTE DE RECUPERACIÓN DE PANTALLA ---
+        function recuperarViajeActivo() {
+            get(ref(db, 'bolsa_pedidos')).then((snapshot) => {
+                if(snapshot.exists()) {
+                    let viajeEncontrado = null;
+                    snapshot.forEach(child => {
+                        const ped = child.val();
+                        if (ped.repartidor === idCadete && (ped.estado === "asignado" || ped.estado === "yendo_al_local" || ped.estado === "en_camino")) {
+                            viajeEncontrado = ped;
+                        }
+                    });
+
+                    if (viajeEncontrado) {
+                        const rutas = separarDirecciones(viajeEncontrado);
+                        const safeOri = rutas.origen.replace(/'/g, "");
+                        const safeDes = rutas.destino.replace(/'/g, "");
+                        restaurarUI(viajeEncontrado.codigo, safeOri, safeDes, viajeEncontrado.latOri || 0, viajeEncontrado.lngOri || 0, viajeEncontrado.latDes || 0, viajeEncontrado.lngDes || 0, viajeEncontrado.estado);
+                    } else {
+                        estadoCadete = "inactivo";
+                        update(ref(db, 'repartidores/' + idCadete), { estado: "inactivo" });
+                        escucharRadar();
+                    }
+                }
+            });
+        }
+
+        function restaurarUI(codigo, origen, destino, latOri, lngOri, latDes, lngDes, estadoGuardado) {
+            viajeActual = codigo; origenCliente = origen; destinoCliente = destino;
+            estadoCadete = estadoGuardado; estadoRuta = "ninguna"; 
+
+            origenLatLng = (latOri !== 0) ? L.latLng(latOri, lngOri) : baseFija;
+            destinoLatLng = (latDes !== 0) ? L.latLng(latDes, lngDes) : baseFija;
+
+            document.getElementById('radar-container').style.display = "none"; 
+            document.getElementById('turno-box').style.display = "none"; 
+            
+            document.getElementById('direccion-viaje-box').style.display = 'block';
+            document.getElementById('map-container').style.display = 'block';
+            document.getElementById('trip-card').style.display = 'block';
+            setTimeout(() => { mapCadete.invalidateSize(); }, 300);
+
+            if(markerPunto) { mapCadete.removeLayer(markerPunto); }
+
+            if (estadoGuardado === "asignado" || estadoGuardado === "yendo_al_local") {
+                document.getElementById('label-destino').innerHTML = "<i class='fas fa-map-marker-alt'></i> PASO 1: RETIRAR PAQUETE EN";
+                document.getElementById('direccion-viaje-box').style.borderColor = "var(--dorado)";
+                document.getElementById('texto-direccion-viaje').innerHTML = origenCliente;
+                markerPunto = L.marker(origenLatLng, {icon: iPunto}).addTo(mapCadete);
+
+                if (estadoGuardado === "asignado") {
+                    document.getElementById('btnIniciar').style.display = 'block';
+                    document.getElementById('btnRetirado').style.display = 'none';
+                    document.getElementById('btnFinalizar').style.display = 'none';
+                    document.getElementById('estado').innerHTML = "Dirigite al punto de retiro.";
+                } else {
+                    document.getElementById('btnIniciar').style.display = 'none';
+                    document.getElementById('btnRetirado').style.display = 'block';
+                    document.getElementById('btnFinalizar').style.display = 'none';
+                    document.getElementById('estado').innerHTML = "Transmitiendo: Yendo a retirar...";
+                }
+            } else if (estadoGuardado === "en_camino") {
+                document.getElementById('label-destino').innerHTML = "<i class='fas fa-flag-checkered'></i> PASO 2: ENTREGAR EN";
+                document.getElementById('direccion-viaje-box').style.borderColor = "var(--azul)";
+                document.getElementById('texto-direccion-viaje').innerHTML = destinoCliente;
+                markerPunto = L.marker(destinoLatLng, {icon: iPunto}).addTo(mapCadete);
+                
+                document.getElementById('btnIniciar').style.display = 'none';
+                document.getElementById('btnRetirado').style.display = 'none';
+                document.getElementById('btnFinalizar').style.display = 'block';
+                document.getElementById('estado').innerHTML = "Transmitiendo: En camino al destino";
+            }
+
+            document.getElementById('btnChatCadete').style.display = 'block'; 
+
+            if (!watchId && navigator.geolocation) {
+                solicitarPantallaEncendida();
+                watchId = navigator.geolocation.watchPosition(exitoGPS, errorGPS, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            }
+
+            primerCargaChat = true;
+            onValue(ref(db, 'chats_pedidos/' + viajeActual), (snapshot) => {
+                const box = document.getElementById('chat-messages');
+                box.innerHTML = '<div style="text-align: center; color: #666; font-size: 0.8rem; margin-top: 10px;">Modo Moto Seguro.</div>';
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        const msg = child.val(); const isCadete = msg.emisor === 'cadete';
+                        box.innerHTML += `<div class="msg-bubble ${isCadete ? 'msg-cadete' : 'msg-cliente'}">${msg.texto}</div>`;
+                        if(!isCadete && !primerCargaChat && document.getElementById('chat-modal').style.display === 'none') {
+                            document.getElementById('badgeChat').style.display = 'flex'; if(navigator.vibrate) navigator.vibrate(200); 
+                        }
+                    });
+                    box.scrollTop = box.scrollHeight;
+                }
+                primerCargaChat = false;
+            });
+            
+            escucharCancelacionDelJefe();
+        }
+
+        // --- ESCUCHAR SI LA CENTRAL CANCELA EL VIAJE EN CURSO ---
+        function escucharCancelacionDelJefe() {
+            if (!viajeActual) return;
+
+            onValue(ref(db, 'bolsa_pedidos/' + viajeActual), (snapshot) => {
+                if (!snapshot.exists() && viajeActual !== "" && estadoCadete !== "inactivo") {
+                    alert("⚠️ LA CENTRAL HA CANCELADO ESTE VIAJE.");
+                    
+                    estadoCadete = "inactivo"; 
+                    
+                    document.getElementById('direccion-viaje-box').style.display = 'none';
+                    document.getElementById('trip-card').style.display = 'none';
+                    document.getElementById('map-container').style.display = 'none';
+                    document.getElementById('turno-box').style.display = 'flex';
+                    document.getElementById('estado').innerHTML = "🟢 En base. Esperando pedido...";
+                    
+                    if (routingControl) { mapCadete.removeControl(routingControl); routingControl = null; }
+                    if (markerPunto) { mapCadete.removeLayer(markerPunto); markerPunto = null; }
+
+                    update(ref(db, 'repartidores/' + idCadete), { estado: "inactivo" });
+                    
+                    if(viajeActual !== "") {
+                        off(ref(db, 'chats_pedidos/' + viajeActual));
+                        off(ref(db, 'bolsa_pedidos/' + viajeActual));
+                        viajeActual = "";
+                        estadoRuta = "ninguna";
+                    }
+                    escucharRadar();
+                }
+            });
+        }
+
+        // --- MÁQUINA DE ESTADOS BOTONES A-B --- //
+        document.getElementById('btnIniciar').addEventListener('click', () => {
+            estadoCadete = "yendo_al_local"; 
+            document.getElementById('estado').innerHTML = "Transmitiendo: Yendo a retirar...";
+            document.getElementById('btnIniciar').style.display = 'none'; document.getElementById('btnRetirado').style.display = 'block';
+            update(ref(db, 'repartidores/' + idCadete), { estado: "yendo_al_local" });
+        });
+
+        document.getElementById('btnRetirado').addEventListener('click', () => {
+            estadoCadete = "en_camino";
+            document.getElementById('label-destino').innerHTML = "<i class='fas fa-flag-checkered'></i> PASO 2: ENTREGAR EN";
+            document.getElementById('texto-direccion-viaje').innerHTML = destinoCliente;
+            document.getElementById('direccion-viaje-box').style.borderColor = "var(--azul)";
+
+            if(markerPunto) { markerPunto.setLatLng(destinoLatLng); }
+
+            document.getElementById('estado').innerHTML = "Transmitiendo: En camino al destino"; 
+            document.getElementById('btnRetirado').style.display = 'none'; document.getElementById('btnFinalizar').style.display = 'block';
+            update(ref(db, 'repartidores/' + idCadete), { estado: "en_camino" });
+        });
+
+        document.getElementById('btnFinalizar').addEventListener('click', () => {
+            estadoCadete = "inactivo"; estadoRuta = "ninguna";
+            
+            document.getElementById('estado').innerHTML = "🟢 En base. Esperando pedido...";
+            
+            document.getElementById('btnFinalizar').style.display = 'none'; document.getElementById('btnChatCadete').style.display = 'none'; 
+            document.getElementById('direccion-viaje-box').style.display = 'none'; document.getElementById('trip-card').style.display = 'none'; document.getElementById('map-container').style.display = 'none';
+            document.getElementById('turno-box').style.display = 'flex'; 
+            
+            if(routingControl) { mapCadete.removeControl(routingControl); routingControl = null; }
+            if(markerPunto) { mapCadete.removeLayer(markerPunto); markerPunto = null; }
+
+            update(ref(db, 'repartidores/' + idCadete), { estado: "inactivo" });
+            
+            if(viajeActual !== "") {
+                off(ref(db, 'chats_pedidos/' + viajeActual)); 
+                off(ref(db, 'bolsa_pedidos/' + viajeActual));
+                update(ref(db, 'bolsa_pedidos/' + viajeActual), { estado: "entregado" });
+                viajeActual = "";
+            }
+            escucharRadar();
+        });
+
+        function exitoGPS(posicion) {
+            const lat = posicion.coords.latitude; const lng = posicion.coords.longitude;
+            const motoLatLng = L.latLng(lat, lng);
+
+            document.getElementById('coordenadas').innerHTML = `LAT: ${lat.toFixed(5)} | LNG: ${lng.toFixed(5)}`;
+            update(ref(db, 'repartidores/' + idCadete), { latitud: lat, longitud: lng, ultima_actualizacion: Date.now() });
+
+            if(mapCadete) {
+                if(!markerCadete) { markerCadete = L.marker(motoLatLng, {icon: iMoto}).addTo(mapCadete); } else { markerCadete.setLatLng(motoLatLng); }
+                mapCadete.setView(motoLatLng);
+
+                if (estadoCadete === "yendo_al_local" && estadoRuta !== "al_local" && origenLatLng) {
+                    trazarRuta(motoLatLng, origenLatLng, '#d4af37'); estadoRuta = "al_local";
+                } 
+                else if (estadoCadete === "en_camino" && estadoRuta !== "al_cliente" && destinoLatLng) {
+                    trazarRuta(motoLatLng, destinoLatLng, '#1976D2'); estadoRuta = "al_cliente";
+                }
+            }
+        }
+        
+        function trazarRuta(origen, destino, color) {
+            if(routingControl) { mapCadete.removeControl(routingControl); }
+            routingControl = L.Routing.control({
+                waypoints: [origen, destino],
+                router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                createMarker: function() { return null; }, routeWhileDragging: false, addWaypoints: false, show: false,
+                lineOptions: { styles: [{color: color, opacity: 0.8, weight: 6}] }
+            }).addTo(mapCadete);
+        }
+
+        function errorGPS(err) {}
+    </script>
+</body>
+</html>

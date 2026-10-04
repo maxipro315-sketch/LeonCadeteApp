@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pedir Envío | Cadetería El León</title>
+    
+    <meta name="theme-color" content="#d4af37">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+    <style>
+        :root { 
+            --dorado: #d4af37; --rojo: #D32F2F; --azul: #1976D2; --verde: #25D366;
+            --negro-puro: #050505; --negro-card: #121212; --blanco: #ffffff; 
+        }
+        
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+        
+        body { 
+            background-color: var(--negro-puro); color: var(--blanco); font-family: 'Poppins', sans-serif; 
+            margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; 
+            background-image: radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+            height: 100vh; overflow: hidden;
+        }
+
+        .header { 
+            background: rgba(18, 18, 18, 0.9); width: 100%; padding: 15px; 
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
+            border-bottom: 2px solid var(--dorado); position: sticky; top: 0; z-index: 1000;
+        }
+        .header-title { font-family: 'Bebas Neue', cursive; font-size: 2.2rem; color: var(--blanco); margin: 0; letter-spacing: 2px;}
+        .header-title span { color: var(--dorado); }
+
+        #pantalla-bloqueada { display: none; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 80px); width: 100%; padding: 30px; text-align: center; }
+        #pantalla-cotizador { width: 100%; max-width: 500px; padding: 20px; overflow-y: auto; height: calc(100vh - 80px); }
+        #pantalla-espera { display: none; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 80px); width: 100%; padding: 20px; text-align: center; }
+        #pantalla-rastreo { display: none; flex-direction: column; width: 100%; height: calc(100vh - 80px); position: relative;}
+
+        .card { 
+            background: linear-gradient(145deg, rgba(20,20,20,0.9), rgba(10,10,10,0.9)); 
+            border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 20px; padding: 25px 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); margin-bottom: 20px;
+        }
+        .section-title { font-family: 'Bebas Neue', cursive; font-size: 1.8rem; color: var(--dorado); margin: 0 0 20px 0; text-align: center;}
+        
+        .input-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .input-row .input-wrapper { margin-bottom: 0; flex: 1; }
+
+        .input-wrapper { position: relative; margin-bottom: 15px; display: flex; align-items: center;}
+        .input-wrapper > i { position: absolute; left: 15px; top: 18px; color: var(--dorado); font-size: 1.2rem; z-index: 10;}
+        .input-field {
+            width: 100%; background: #080808; border: 1px solid #333; color: white; 
+            padding: 15px 55px 15px 45px; border-radius: 12px; font-family: 'Poppins', sans-serif; font-size: 1rem; 
+            outline: none;
+        }
+        .input-field:focus { border-color: var(--dorado); }
+        textarea.input-field { min-height: 80px; resize: vertical; padding-right: 15px; }
+
+        .btn-mapa-input {
+            position: absolute; right: 5px; top: 5px; bottom: 5px; background: #222; border: 1px solid #444; 
+            color: var(--dorado); border-radius: 8px; width: 45px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; z-index: 10;
+        }
+        .btn-mapa-input:active { background: var(--dorado); color: black; }
+
+        .btn-primario { 
+            width: 100%; padding: 16px; border-radius: 12px; border: none; 
+            background: linear-gradient(45deg, var(--dorado), #b8962e); color: #000; 
+            font-family: 'Bebas Neue', cursive; font-size: 1.5rem; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold;
+        }
+        .btn-primario:active { transform: scale(0.98); }
+
+        #resultado-cotizacion { display: none; background: #111; border: 1px solid var(--dorado); border-radius: 15px; padding: 20px; text-align: center; margin-top: 20px; }
+        .precio-final { font-family: 'Bebas Neue', cursive; font-size: 3rem; color: var(--verde); margin: 10px 0; }
+        
+        .radar-spinner { font-size: 5rem; color: var(--dorado); animation: pulseRadar 1.5s infinite; margin-bottom: 20px;}
+        @keyframes pulseRadar { 0% { transform: scale(0.9); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+        
+        .btn-cancelar-espera, .btn-cancelar-viaje {
+            background: rgba(211, 47, 47, 0.15); border: 1px solid var(--rojo); color: var(--rojo);
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold;
+        }
+        .btn-cancelar-espera { padding: 12px 24px; border-radius: 12px; font-family: 'Bebas Neue', cursive; font-size: 1.3rem; margin-top: 25px; }
+        .btn-cancelar-viaje { padding: 12px; border-radius: 10px; font-size: 0.9rem; }
+        .btn-cancelar-espera:hover, .btn-cancelar-viaje:hover { background: var(--rojo); color: white; }
+
+        #map { flex: 1; width: 100%; background: #222; z-index: 1; }
+        .leaflet-control-attribution, .leaflet-routing-container { display: none !important; } 
+
+        .driver-card {
+            position: absolute; bottom: 20px; left: 5%; right: 5%; background: linear-gradient(145deg, #121212, #1a1a1a); 
+            border: 1px solid var(--dorado); border-radius: 20px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            z-index: 1000; display: flex; flex-direction: column; gap: 10px; animation: slideUp 0.5s ease forwards;
+        }
+        @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .driver-info { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed #333; padding-bottom: 10px;}
+        .driver-details { display: flex; align-items: center; gap: 12px; }
+        .driver-avatar {
+            width: 50px; height: 50px; background: var(--dorado); border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-size: 1.5rem; color: black; border: 2px solid #fff; flex-shrink: 0;
+        }
+        .driver-name { font-family: 'Bebas Neue', cursive; font-size: 1.5rem; margin: 0; letter-spacing: 1px; color: var(--dorado);}
+        .driver-vehicle { color: #bbb; font-size: 0.8rem; margin: 0; }
+
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .btn-chat { background: #222; color: white; border: 1px solid #444; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; position: relative;}
+        .badge-chat { position: absolute; top: -5px; right: -5px; background: var(--rojo); color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 0.7rem; display: none; align-items: center; justify-content: center; }
+
+        #chat-modal, #modal-selector-mapa {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 2000; flex-direction: column; 
+            animation: slideInUp 0.3s ease;
+        }
+        @keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .modal-header { padding: 15px 20px; background: #0a0a0a; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--dorado); z-index: 20; }
+        .modal-header h3 { margin: 0; font-family: 'Bebas Neue'; font-size: 1.8rem; color: var(--dorado); display: flex; align-items: center; gap: 10px;}
+        .btn-cerrar-modal { background: none; border: none; color: white; font-size: 2.5rem; cursor: pointer; line-height: 1; }
+        
+        #mapa-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #222; z-index: 1; }
+        .marcador-fijo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); z-index: 1000; font-size: 40px; color: var(--rojo); pointer-events: none; text-shadow: 0 10px 10px rgba(0,0,0,0.5); }
+
+        #chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #111; }
+        .msg-bubble { padding: 10px 15px; border-radius: 15px; max-width: 80%; font-size: 0.9rem; }
+        .msg-cliente { align-self: flex-end; background: var(--dorado); color: black; border-bottom-right-radius: 2px; }
+        .msg-cadete { align-self: flex-start; background: #222; color: white; border-bottom-left-radius: 2px; border: 1px solid #333;}
+        .chat-input-area { padding: 15px; background: #0a0a0a; display: flex; gap: 10px; border-top: 1px solid #333; }
+        .chat-input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #333; background: #000; color: white; outline: none; }
+        .btn-enviar-msg { background: var(--dorado); color: black; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 class="header-title">CADETERÍA <span>EL LEÓN</span></h1>
+    </div>
+
+    <!-- PANTALLA USUARIO BLOQUEADO -->
+    <div id="pantalla-bloqueada">
+        <i class="fas fa-user-slash" style="font-size: 5rem; color: var(--rojo); margin-bottom: 20px;"></i>
+        <h2 style="font-family: 'Bebas Neue'; font-size: 2.2rem; color: var(--rojo); margin: 0 0 10px 0;">ACCESO SUSPENDIDO</h2>
+        <p style="color: #bbb; line-height: 1.6; max-width: 380px;">Tus datos o tu red han sido bloqueados por la administración debido a pedidos reportados como falsos. Comunicarse con la base si se trata de un error.</p>
+    </div>
+
+    <!-- PANTALLA 1: FORMULARIO -->
+    <div id="pantalla-cotizador">
+        <div class="card" id="form-card">
+            <h2 class="section-title">Datos del Remitente</h2>
+            
+            <div class="input-wrapper">
+                <i class="fas fa-user" style="color: var(--dorado);"></i>
+                <input type="text" id="cliente-nombre" class="input-field" placeholder="Nombre Completo" style="padding-right: 15px;">
+            </div>
+
+            <div class="input-wrapper">
+                <i class="fas fa-id-card" style="color: var(--dorado);"></i>
+                <input type="number" id="cliente-dni" class="input-field" placeholder="DNI (Ej: 34123456)" style="padding-right: 15px;">
+            </div>
+
+            <h2 class="section-title" style="margin-top: 30px;">Datos del Envío</h2>
+
+            <div class="input-wrapper">
+                <i class="fas fa-map-marker-alt" style="color: var(--rojo);"></i>
+                <input type="text" id="origen" class="input-field" placeholder="Punto A (Retiro)">
+                <button class="btn-mapa-input" onclick="abrirSelectorMapa('origen')" title="Ubicar en mapa"><i class="fas fa-map-marked-alt"></i></button>
+            </div>
+            
+            <div class="input-wrapper">
+                <i class="fas fa-flag-checkered" style="color: var(--azul);"></i>
+                <input type="text" id="destino" class="input-field" placeholder="Punto B (Entrega)">
+                <button class="btn-mapa-input" onclick="abrirSelectorMapa('destino')" title="Ubicar en mapa"><i class="fas fa-map-marked-alt"></i></button>
+            </div>
+            
+            <div class="input-wrapper">
+                <i class="fas fa-box"></i>
+                <textarea id="detalle" class="input-field" placeholder="¿Qué enviamos?"></textarea>
+            </div>
+            
+            <button class="btn-primario" id="btn-cotizar" onclick="cotizarViaje()"><i class="fas fa-calculator"></i> COTIZAR VIAJE</button>
+        </div>
+
+        <div id="resultado-cotizacion">
+            <h3 style="margin: 0; color: #aaa; font-size: 1rem;">Costo Estimado</h3>
+            <div class="precio-final" id="display-precio">$--</div>
+            <button class="btn-primario" style="background: var(--verde); color: white;" onclick="enviarSolicitud()"><i class="fas fa-paper-plane"></i> CONFIRMAR PEDIDO</button>
+            <button onclick="cancelarCotizacion()" style="background: transparent; border: none; color: #aaa; margin-top: 15px; cursor: pointer; text-decoration: underline;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL SELECTOR DE MAPA -->
+    <div id="modal-selector-mapa">
+        <div class="modal-header">
+            <h3 id="titulo-selector-mapa">UBICACIÓN</h3>
+            <button class="btn-cerrar-modal" onclick="cerrarSelectorMapa()">&times;</button>
+        </div>
+        <div style="position: relative; flex: 1; width: 100%; display: block; overflow: hidden;">
+            <div id="mapa-picker"></div>
+            <i class="fas fa-map-marker-alt marcador-fijo"></i>
+        </div>
+        <div style="padding: 20px; background: #0a0a0a; z-index: 20;">
+            <button class="btn-primario" id="btn-confirmar-punto" onclick="confirmarUbicacionMapa()"><i class="fas fa-check"></i> ESTA ES LA DIRECCIÓN</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA 2: ESPERA -->
+    <div id="pantalla-espera">
+        <i class="fas fa-satellite-dish radar-spinner"></i>
+        <h2 style="font-family: 'Bebas Neue'; font-size: 2.5rem; color: var(--dorado); margin: 10px 0;">PROCESANDO...</h2>
+        <p id="texto-estado" style="color: #bbb;">Enviando solicitud a la central...</p>
+        <button class="btn-cancelar-espera" onclick="cancelarPedidoActivo()"><i class="fas fa-times-circle"></i> CANCELAR PEDIDO</button>
+    </div>
+
+    <!-- PANTALLA 3: MAPA EN VIVO -->
+    <div id="pantalla-rastreo">
+        <div id="map"></div>
+        <div class="driver-card">
+            <div class="driver-info">
+                <div class="driver-details">
+                    <div class="driver-avatar"><i class="fas fa-motorcycle"></i></div>
+                    <div>
+                        <p class="driver-name" id="driver-name">CADETE</p>
+                        <p class="driver-vehicle" id="driver-vehicle">En camino...</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin: 0; font-size: 0.8rem; color: #aaa;">Llega en:</p>
+                    <p style="margin: 0; font-family: 'Bebas Neue'; font-size: 1.5rem; color: var(--verde);" id="eta-time">-- min</p>
+                </div>
+            </div>
+            <div class="actions-grid">
+                <button class="btn-chat" onclick="abrirChat()"><i class="fas fa-comments"></i> CHAT <div class="badge-chat" id="badge-chat">!</div></button>
+                <button class="btn-cancelar-viaje" onclick="cancelarPedidoActivo()"><i class="fas fa-ban"></i> CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CHAT -->
+    <div id="chat-modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-comment-dots"></i> Chat con Cadete</h3>
+            <button class="btn-cerrar-modal" onclick="cerrarChat()">&times;</button>
+        </div>
+        <div id="chat-messages"><div style="text-align: center; color: #666; font-size: 0.8rem; margin-top: 10px;">Chat encriptado.</div></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Escribí un mensaje..." onkeypress="if(event.key==='Enter') enviarMensaje()">
+            <button class="btn-enviar-msg" onclick="enviarMensaje()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove, update, off, get } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyCJxlyB2mP05kfMhL_AhZPTE_IHOvVxIH4", authDomain: "burger-piola-tracking.firebaseapp.com", databaseURL: "https://burger-piola-tracking-default-rtdb.firebaseio.com", projectId: "burger-piola-tracking", storageBucket: "burger-piola-tracking.firebasestorage.app", messagingSenderId: "399109949329", appId: "1:399109949329:web:3fd6dbeeaa4dc2a5773c30" };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let ipCliente = "No detectada";
+        
+        // Cargar datos previos y la IP
+        window.onload = () => {
+            const nombreGuardado = localStorage.getItem('leon_cliente_nombre');
+            const dniGuardado = localStorage.getItem('leon_cliente_dni');
+            if(nombreGuardado) document.getElementById('cliente-nombre').value = nombreGuardado;
+            if(dniGuardado) document.getElementById('cliente-dni').value = dniGuardado;
+
+            // Obtener IP real
+            fetch('https://api.ipify.org?format=json')
+                .then(r => r.json())
+                .then(data => { ipCliente = data.ip; comprobarBloqueo(); })
+                .catch(e => console.log("Error obteniendo IP"));
+        };
+
+        async function comprobarBloqueo() {
+            const dniActual = document.getElementById('cliente-dni').value.trim();
+            const dniGuardado = localStorage.getItem('leon_cliente_dni');
+            const dniAComprobar = dniActual || dniGuardado;
+
+            if (dniAComprobar) {
+                const snapDni = await get(ref(db, 'clientes_bloqueados/' + dniAComprobar));
+                if (snapDni.exists()) return bloquearPantalla();
+            }
+
+            // También revisamos la IP si no tiene DNI cargado o no estaba bloqueado
+            if (ipCliente !== "No detectada") {
+                const ipLimpia = ipCliente.replace(/\./g, "_"); // Firebase no acepta puntos en las keys
+                const snapIp = await get(ref(db, 'clientes_bloqueados/' + ipLimpia));
+                if (snapIp.exists()) return bloquearPantalla();
+            }
+            return false;
+        }
+
+        function bloquearPantalla() {
+            document.getElementById('pantalla-cotizador').style.display = 'none';
+            document.getElementById('pantalla-espera').style.display = 'none';
+            document.getElementById('pantalla-rastreo').style.display = 'none';
+            document.getElementById('pantalla-bloqueada').style.display = 'flex';
+            return true;
+        }
+
+        let viajeData = null;
+        let repartidorAsignado = "";
+        let map = null; let markerMoto = null; let routingControl = null;
+        let pedidoCanceladoPorUsuario = false;
+
+        let mapaSelector = null;
+        let targetInputSelector = ""; 
+
+        window.abrirSelectorMapa = function(tipo) {
+            targetInputSelector = tipo;
+            document.getElementById('modal-selector-mapa').style.display = 'flex';
+            
+            const titulo = document.getElementById('titulo-selector-mapa');
+            if (tipo === 'origen') {
+                titulo.innerHTML = '<i class="fas fa-map-marker-alt" style="color:var(--rojo);"></i> PUNTO DE RETIRO';
+            } else {
+                titulo.innerHTML = '<i class="fas fa-flag-checkered" style="color:var(--azul);"></i> PUNTO DE ENTREGA';
+            }
+
+            if (!mapaSelector) {
+                mapaSelector = L.map('mapa-picker', { zoomControl: false }).setView([-33.131058, -64.340524], 15);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri',
+                    maxZoom: 19
+                }).addTo(mapaSelector);
+            }
+            
+            setTimeout(() => { mapaSelector.invalidateSize(); }, 300);
+        };
+
+        window.cerrarSelectorMapa = function() {
+            document.getElementById('modal-selector-mapa').style.display = 'none';
+        };
+
+        window.confirmarUbicacionMapa = async function() {
+            const btn = document.getElementById('btn-confirmar-punto');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> BUSCANDO CALLE...';
+            
+            const centro = mapaSelector.getCenter();
+            const inputDestino = document.getElementById(targetInputSelector);
+
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${centro.lat}&lon=${centro.lng}`);
+                const data = await res.json();
+                
+                if (data && data.address) {
+                    let calle = data.address.road || data.address.pedestrian || "Dirección seleccionada";
+                    let altura = data.address.house_number || "";
+                    inputDestino.value = `${calle} ${altura}`.trim();
+                } else {
+                    inputDestino.value = "Punto en el mapa";
+                }
+            } catch (error) {
+                inputDestino.value = "Punto en el mapa";
+            }
+
+            btn.innerHTML = '<i class="fas fa-check"></i> ESTA ES LA DIRECCIÓN';
+            cerrarSelectorMapa();
+        };
+
+        async function geocodificar(direccion) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion + ", Río Cuarto, Córdoba, Argentina")}`);
+            const data = await res.json();
+            return data.length > 0 ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
+        }
+
+        window.cotizarViaje = async function() {
+            const nombre = document.getElementById('cliente-nombre').value.trim();
+            const dni = document.getElementById('cliente-dni').value.trim();
+            const origen = document.getElementById('origen').value.trim(); 
+            const destino = document.getElementById('destino').value.trim();
+            const btn = document.getElementById('btn-cotizar');
+
+            if(!nombre) return alert("Por favor, ingresá tu Nombre Completo.");
+            if(!dni || !/^\d{8}$/.test(dni)) return alert("El DNI debe tener exactamente 8 números y sin puntos.");
+            if(!origen || !destino) return alert("Completá origen y destino.");
+            
+            if(await comprobarBloqueo()) return;
+
+            // Guardamos localmente para futuros viajes
+            localStorage.setItem('leon_cliente_nombre', nombre);
+            localStorage.setItem('leon_cliente_dni', dni);
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CALCULANDO...'; btn.disabled = true;
+            
+            const cOri = await geocodificar(origen); const cDes = await geocodificar(destino);
+            if(!cOri || !cDes) { alert("No encontramos la dirección exacta. Intentá marcarla en el mapa."); btn.innerHTML = '<i class="fas fa-calculator"></i> COTIZAR VIAJE'; btn.disabled = false; return; }
+
+            const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${cOri.lng},${cOri.lat};${cDes.lng},${cDes.lat}?overview=false`);
+            const data = await res.json();
+
+            if (data.routes && data.routes.length > 0) {
+                let cuadras = Math.ceil(data.routes[0].distance / 100);
+                let precio = cuadras <= 10 ? 3500 : (cuadras <= 20 ? 4000 : (cuadras <= 30 ? 4500 : 5000)); 
+                if(cuadras > 30) precio = 5000 + ((cuadras-30)*100);
+
+                viajeData = {
+                    codigo: "LEON-" + Math.floor(1000 + Math.random() * 9000),
+                    nombreCliente: nombre,
+                    dniCliente: dni,
+                    ipCliente: ipCliente,
+                    direccion: origen + " hasta " + destino, detalle: document.getElementById('detalle').value,
+                    precio: precio, estado: "solicitado", repartidor: "",
+                    latOri: cOri.lat, lngOri: cOri.lng, latDes: cDes.lat, lngDes: cDes.lng,
+                    timestamp: Date.now()
+                };
+
+                document.getElementById('display-precio').innerText = `$${precio}`;
+                document.getElementById('form-card').style.display = 'none';
+                document.getElementById('resultado-cotizacion').style.display = 'block';
+            }
+            btn.innerHTML = '<i class="fas fa-calculator"></i> COTIZAR VIAJE'; btn.disabled = false;
+        };
+
+        window.cancelarCotizacion = function() {
+            document.getElementById('resultado-cotizacion').style.display = 'none';
+            document.getElementById('form-card').style.display = 'block';
+        };
+
+        window.enviarSolicitud = async function() {
+            if(await comprobarBloqueo()) return;
+
+            document.getElementById('pantalla-cotizador').style.display = 'none';
+            document.getElementById('pantalla-espera').style.display = 'flex';
+            pedidoCanceladoPorUsuario = false;
+
+            await set(ref(db, 'bolsa_pedidos/' + viajeData.codigo), viajeData);
+            escucharMiViaje(viajeData.codigo);
+        };
+
+        window.cancelarPedidoActivo = async function() {
+            if(!viajeData || !viajeData.codigo) return;
+            if(!confirm("¿Seguro que querés cancelar tu pedido?")) return;
+
+            pedidoCanceladoPorUsuario = true;
+            const cod = viajeData.codigo;
+
+            off(ref(db, 'bolsa_pedidos/' + cod));
+            off(ref(db, 'chats_pedidos/' + cod));
+            if(repartidorAsignado) {
+                off(ref(db, 'repartidores/' + repartidorAsignado));
+                await update(ref(db, 'repartidores/' + repartidorAsignado), { estado: "inactivo" });
+            }
+
+            await remove(ref(db, 'bolsa_pedidos/' + cod));
+
+            alert("Tu pedido ha sido cancelado.");
+            location.reload();
+        };
+
+        function escucharMiViaje(codigo) {
+            const textoEstado = document.getElementById('texto-estado');
+            
+            onValue(ref(db, 'bolsa_pedidos/' + codigo), (snapshot) => {
+                if(!snapshot.exists()) {
+                    if(!pedidoCanceladoPorUsuario) {
+                        alert("El pedido ha sido cancelado o rechazado por la central.");
+                        location.reload();
+                    }
+                    return;
+                }
+                const viaje = snapshot.val();
+                if(viaje.repartidor) repartidorAsignado = viaje.repartidor;
+
+                if (viaje.estado === "solicitado") {
+                    textoEstado.innerText = "La central está revisando tu pedido...";
+                } 
+                else if (viaje.estado === "pendiente") {
+                    textoEstado.innerText = "¡Aprobado! Buscando un cadete en la zona...";
+                } 
+                else if (viaje.estado === "asignado" || viaje.estado === "yendo_al_local" || viaje.estado === "en_camino") {
+                    document.getElementById('pantalla-espera').style.display = 'none';
+                    document.getElementById('pantalla-rastreo').style.display = 'flex';
+                    iniciarMapa(viaje);
+                }
+                else if (viaje.estado === "entregado") {
+                    document.getElementById('pantalla-rastreo').innerHTML = '<div style="padding:40px; text-align:center;"><i class="fas fa-check-circle" style="font-size: 5rem; color: var(--verde);"></i><h1 style="font-family: Bebas Neue; font-size: 3rem; margin-top: 20px;">¡VIAJE FINALIZADO!</h1><button onclick="location.reload()" class="btn-primario">PEDIR OTRO</button></div>';
+                }
+            });
+        }
+
+        function iniciarMapa(viaje) {
+            if(map) return;
+            
+            map = L.map('map').setView([viaje.latOri, viaje.lngOri], 15);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19
+            }).addTo(map);
+
+            const iMoto = L.divIcon({ html: `<div style="background: var(--dorado); color: black; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.6); font-size: 18px;"><i class="fas fa-motorcycle"></i></div>`, className: '', iconSize: [40, 40] });
+            const iOri = L.divIcon({ html: `<div style="background: var(--rojo); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff;"><i class="fas fa-box"></i></div>`, className: '', iconSize: [30, 30] });
+            const iDes = L.divIcon({ html: `<div style="background: var(--azul); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff;"><i class="fas fa-flag-checkered"></i></div>`, className: '', iconSize: [30, 30] });
+
+            L.marker([viaje.latOri, viaje.lngOri], {icon: iOri}).addTo(map);
+            L.marker([viaje.latDes, viaje.lngDes], {icon: iDes}).addTo(map);
+
+            onValue(ref(db, 'repartidores/' + viaje.repartidor), (snap) => {
+                const rep = snap.val();
+                if(rep && rep.latitud) {
+                    const latlng = L.latLng(rep.latitud, rep.longitud);
+                    if(!markerMoto) markerMoto = L.marker(latlng, {icon: iMoto}).addTo(map);
+                    else markerMoto.setLatLng(latlng);
+
+                    document.getElementById('driver-name').innerText = rep.nombre ? rep.nombre.toUpperCase() : "CADETE";
+                    if(rep.moto) document.getElementById('driver-vehicle').innerText = rep.moto;
+                    
+                    let destinoRuta = (rep.estado === "yendo_al_local") ? L.latLng(viaje.latOri, viaje.lngOri) : L.latLng(viaje.latDes, viaje.lngDes);
+                    
+                    if(!routingControl) {
+                        routingControl = L.Routing.control({
+                            waypoints: [latlng, destinoRuta],
+                            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                            createMarker: () => null, routeWhileDragging: false, addWaypoints: false, show: false,
+                            lineOptions: { styles: [{color: '#d4af37', opacity: 0.8, weight: 6}] }
+                        }).addTo(map);
+                        routingControl.on('routesfound', (e) => { document.getElementById('eta-time').innerText = Math.max(1, Math.round(e.routes[0].summary.totalTime / 60)) + ' min'; });
+                    } else {
+                        routingControl.setWaypoints([latlng, destinoRuta]);
+                    }
+                }
+            });
+
+            onValue(ref(db, 'chats_pedidos/' + viaje.codigo), (snap) => {
+                const box = document.getElementById('chat-messages');
+                box.innerHTML = '<div style="text-align: center; color: #666; font-size: 0.8rem; margin-top: 10px;">Chat encriptado.</div>';
+                if(snap.exists()) {
+                    snap.forEach(child => {
+                        const msg = child.val();
+                        const isCli = msg.emisor === 'cliente';
+                        box.innerHTML += `<div class="msg-bubble ${isCli ? 'msg-cliente' : 'msg-cadete'}">${msg.texto}</div>`;
+                        if(!isCli && document.getElementById('chat-modal').style.display === 'none') {
+                            document.getElementById('badge-chat').style.display = 'flex';
+                            if(navigator.vibrate) navigator.vibrate(200);
+                        }
+                    });
+                    box.scrollTop = box.scrollHeight;
+                }
+            });
+        }
+
+        window.abrirChat = function() { document.getElementById('chat-modal').style.display = 'flex'; document.getElementById('badge-chat').style.display = 'none'; }
+        window.cerrarChat = function() { document.getElementById('chat-modal').style.display = 'none'; }
+        window.enviarMensaje = function() {
+            const txt = document.getElementById('chat-input').value.trim();
+            if(!txt || !viajeData) return;
+            push(ref(db, 'chats_pedidos/' + viajeData.codigo), { emisor: 'cliente', texto: txt, timestamp: Date.now() });
+            document.getElementById('chat-input').value = '';
+        }
+    </script>
+</body>
+</html>
