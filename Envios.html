@@ -133,11 +133,116 @@
         .chat-input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #333; background: #000; color: white; outline: none; }
         .btn-enviar-msg { background: var(--dorado); color: black; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; }
     </style>
+    <style>
+        /* Mejoras visuales */
+        :root { --dorado-claro: #f1d47a; --borde-glow: rgba(212,175,55,0.35); }
+        body {
+            background-image:
+                radial-gradient(circle at 50% -10%, rgba(212,175,55,0.14) 0%, transparent 55%),
+                radial-gradient(circle at 100% 100%, rgba(25,118,210,0.06) 0%, transparent 45%);
+            background-attachment: fixed;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.4); border-radius: 10px; }
+
+        .header {
+            background: linear-gradient(180deg, rgba(22,22,22,0.95), rgba(10,10,10,0.9));
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--borde-glow);
+            box-shadow: 0 4px 25px rgba(0,0,0,0.6), 0 1px 0 rgba(212,175,55,0.5);
+            padding: 10px 15px;
+        }
+        .header-brand { display: flex; align-items: center; gap: 12px; }
+        .header-logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--dorado); box-shadow: 0 0 15px rgba(212,175,55,0.4); }
+        .header-title { font-size: 2rem; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
+        .header-title span { background: linear-gradient(90deg, var(--dorado), var(--dorado-claro)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-sub { margin: 0; font-size: 0.65rem; letter-spacing: 3px; color: #8a8a8a; text-transform: uppercase; }
+
+        #pantalla-cotizador { animation: fadeUp 0.6s ease both; padding-bottom: 40px; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            border: 1px solid var(--borde-glow); border-radius: 24px; padding: 28px 22px;
+            background: linear-gradient(145deg, rgba(26,26,26,0.95), rgba(10,10,10,0.95));
+            box-shadow: 0 20px 45px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05);
+            position: relative; overflow: hidden;
+        }
+        .card::before { content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 2px; background: linear-gradient(90deg, transparent, var(--dorado), transparent); }
+
+        .section-title {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            font-size: 1.7rem; letter-spacing: 1.5px; margin-bottom: 22px;
+        }
+        .section-title::before, .section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.45)); }
+        .section-title::after { transform: scaleX(-1); }
+
+        .input-wrapper > i { top: 50%; transform: translateY(-50%); }
+        textarea ~ i, .input-wrapper:has(textarea) > i { top: 22px; transform: none; }
+        .input-field {
+            background: rgba(255,255,255,0.03); border: 1px solid #2c2c2c; border-radius: 14px;
+            padding: 16px 55px 16px 48px; font-size: 0.95rem;
+        }
+        .input-field::placeholder { color: #6d6d6d; }
+        .input-field:focus { border-color: var(--dorado); background: rgba(212,175,55,0.05); box-shadow: 0 0 0 3px rgba(212,175,55,0.15); }
+
+        .btn-mapa-input { background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; }
+        .btn-mapa-input:hover { background: rgba(212,175,55,0.25); }
+
+        .btn-primario {
+            background: linear-gradient(135deg, var(--dorado-claro), var(--dorado) 50%, #a8851f);
+            border-radius: 14px; padding: 17px; letter-spacing: 1.5px;
+            box-shadow: 0 8px 22px rgba(212,175,55,0.3);
+        }
+        .btn-primario:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(212,175,55,0.45); }
+        .btn-primario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        #resultado-cotizacion {
+            background: linear-gradient(145deg, rgba(20,30,22,0.9), rgba(10,10,10,0.95));
+            border: 1px solid rgba(37,211,102,0.45); border-radius: 22px; padding: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 30px rgba(37,211,102,0.08);
+            animation: fadeUp 0.5s ease both;
+        }
+        .precio-final { font-size: 3.6rem; text-shadow: 0 0 25px rgba(37,211,102,0.4); }
+        #resultado-cotizacion .btn-primario[style*="verde"] { background: linear-gradient(135deg, #2fe27a, #1ba84f) !important; box-shadow: 0 8px 22px rgba(37,211,102,0.3); }
+
+        #pantalla-espera, #pantalla-bloqueada { background: radial-gradient(circle at 50% 40%, rgba(212,175,55,0.08), transparent 60%); }
+        .radar-spinner { filter: drop-shadow(0 0 20px rgba(212,175,55,0.6)); }
+        .btn-cancelar-espera { border-radius: 14px; }
+
+        .driver-card {
+            background: linear-gradient(145deg, rgba(20,20,20,0.96), rgba(8,8,8,0.96));
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--borde-glow); border-radius: 24px; padding: 18px;
+            box-shadow: 0 -5px 40px rgba(0,0,0,0.8), 0 0 25px rgba(212,175,55,0.12);
+            max-width: 500px; margin: 0 auto;
+        }
+        .driver-avatar { background: linear-gradient(135deg, var(--dorado-claro), var(--dorado)); box-shadow: 0 0 15px rgba(212,175,55,0.5); }
+        .btn-chat { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 13px; }
+        .btn-chat:hover { background: rgba(212,175,55,0.15); border-color: var(--dorado); }
+        .btn-cancelar-viaje { border-radius: 12px; }
+
+        .modal-header { background: linear-gradient(180deg, #141414, #0a0a0a); box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+        .marcador-fijo { filter: drop-shadow(0 6px 6px rgba(0,0,0,0.6)); animation: bounceMarker 1.6s ease-in-out infinite; }
+        @keyframes bounceMarker { 0%,100% { transform: translate(-50%, -100%); } 50% { transform: translate(-50%, -112%); } }
+
+        .msg-bubble { box-shadow: 0 3px 10px rgba(0,0,0,0.3); line-height: 1.4; }
+        .msg-cliente { background: linear-gradient(135deg, var(--dorado-claro), var(--dorado)); }
+        .chat-input-area { background: #0a0a0a; }
+        .chat-input { background: rgba(255,255,255,0.04); }
+        .chat-input:focus { border-color: var(--dorado); }
+        .btn-enviar-msg { background: linear-gradient(135deg, var(--dorado-claro), var(--dorado)); box-shadow: 0 4px 12px rgba(212,175,55,0.35); }
+    </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 class="header-title">CADETERÍA <span>EL LEÓN</span></h1>
+        <div class="header-brand">
+            <img src="LogoApp.png" alt="" class="header-logo">
+            <div>
+                <h1 class="header-title">CADETERÍA <span>EL LEÓN</span></h1>
+                <p class="header-sub">Pedí tu envío</p>
+            </div>
+        </div>
     </div>
 
     <!-- PANTALLA USUARIO BLOQUEADO -->
@@ -150,7 +255,7 @@
     <!-- PANTALLA 1: FORMULARIO -->
     <div id="pantalla-cotizador">
         <div class="card" id="form-card">
-            <h2 class="section-title">Datos del Remitente</h2>
+            <h2 class="section-title"><i class="fas fa-user-circle"></i> Remitente</h2>
             
             <div class="input-wrapper">
                 <i class="fas fa-user" style="color: var(--dorado);"></i>
@@ -162,7 +267,7 @@
                 <input type="number" id="cliente-dni" class="input-field" placeholder="DNI (Ej: 34123456)" style="padding-right: 15px;">
             </div>
 
-            <h2 class="section-title" style="margin-top: 30px;">Datos del Envío</h2>
+            <h2 class="section-title" style="margin-top: 30px;"><i class="fas fa-route"></i> Envío</h2>
 
             <div class="input-wrapper">
                 <i class="fas fa-map-marker-alt" style="color: var(--rojo);"></i>
