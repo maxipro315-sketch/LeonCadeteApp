@@ -104,6 +104,23 @@
         
         .info-cliente { background: #080808; padding: 10px; border-radius: 10px; font-size: 0.85rem; border: 1px solid #222; display: flex; justify-content: space-between; align-items: center;}
 
+        .historial-resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .historial-stat { padding: 14px; background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.2); border-radius: 12px; text-align: left; }
+        .historial-stat span { display: block; color: #999; font-size: 0.75rem; text-transform: uppercase; }
+        .historial-stat strong { display: block; color: var(--dorado); font-family: 'Bebas Neue', cursive; font-size: 1.8rem; }
+        .historial-label { display: block; color: var(--dorado); font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; text-align: left; }
+        .historial-select { padding-left: 16px; margin-bottom: 18px; cursor: pointer; }
+        .historial-grupo { padding: 16px 0; border-top: 1px solid #303030; text-align: left; }
+        .historial-cadete { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .historial-cadete strong { color: var(--blanco); }
+        .historial-cadete small { display: block; color: #888; margin-top: 3px; }
+        .historial-cantidad { color: var(--dorado); font-size: 0.8rem; white-space: nowrap; }
+        .historial-viaje { padding: 12px; margin: 8px 0 0 10px; border-left: 2px solid rgba(212,175,55,0.5); background: rgba(255,255,255,0.025); }
+        .historial-viaje-cabecera { display: flex; justify-content: space-between; gap: 10px; color: var(--verde); font-weight: 600; font-size: 0.85rem; }
+        .historial-viaje p { margin: 6px 0 0; color: #bbb; font-size: 0.82rem; line-height: 1.5; overflow-wrap: anywhere; }
+        .historial-vacio { color: #888; padding: 16px 0; text-align: center; font-size: 0.9rem; }
+        @media (max-width: 380px) { .historial-viaje-cabecera { flex-direction: column; gap: 2px; } }
+
         #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--verde); color: white; font-weight: 600; padding: 14px 28px; border-radius: 30px; display: none; z-index: 4000; text-align: center; }
 
         #mapa-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; z-index: 3000; flex-direction: column; padding: 15px; animation: slideInUp 0.3s ease; }
@@ -150,6 +167,30 @@
             <div class="input-wrapper"><i class="fas fa-box"></i><input type="text" id="input-detalle" class="input-field-modern" placeholder="¿Qué lleva? (Ej: Llaves)"></div>
             <button class="btn btn-lanzar-modern" id="btn-lanzar" onclick="lanzarPedidoManual()"><i class="fas fa-rocket"></i> ENVIAR AL RADAR</button>
         </div>
+
+        <div class="card form-card" style="padding: 30px 25px;">
+            <div class="card-header-glow"><i class="fas fa-user-plus"></i> ALTA DE REPARTIDOR</div>
+            <div class="input-wrapper"><i class="fas fa-id-badge"></i><input type="text" id="nuevo-cadete-usuario" class="input-field-modern" placeholder="Usuario (apellido, sin espacios)" autocomplete="off"></div>
+            <div class="input-wrapper"><i class="fas fa-user"></i><input type="text" id="nuevo-cadete-nombre" class="input-field-modern" placeholder="Nombre completo" autocomplete="name"></div>
+            <div class="input-wrapper"><i class="fas fa-motorcycle"></i><input type="text" id="nuevo-cadete-moto" class="input-field-modern" placeholder="Moto o vehículo" autocomplete="off"></div>
+            <div class="input-wrapper"><i class="fas fa-lock"></i><input type="password" id="nuevo-cadete-clave" class="input-field-modern" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="new-password"></div>
+            <button class="btn btn-login" id="btn-crear-cadete" onclick="crearCadete()"><i class="fas fa-user-check"></i> CREAR USUARIO</button>
+        </div>
+
+        <section class="card" aria-labelledby="titulo-historial">
+            <h2 class="section-title" id="titulo-historial"><i class="fas fa-clipboard-list"></i> Historial de cadetes</h2>
+            <div class="historial-resumen">
+                <div class="historial-stat"><span>Cadetes registrados</span><strong id="historial-total-cadetes">0</strong></div>
+                <div class="historial-stat"><span>Viajes entregados</span><strong id="historial-total-viajes">0</strong></div>
+            </div>
+            <label class="historial-label" for="filtro-historial-cadete">Filtrar por cadete</label>
+            <select id="filtro-historial-cadete" class="input-field-modern historial-select">
+                <option value="" disabled selected>Seleccioná un cadete</option>
+            </select>
+            <div id="lista-historial-cadetes" aria-live="polite">
+                <p class="historial-vacio">Cargando historial...</p>
+            </div>
+        </section>
     </div>
 
     <div id="mapa-modal">
@@ -166,13 +207,15 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-database.js";
 
         const firebaseConfig = { apiKey: "AIzaSyCJxlyB2mP05kfMhL_AhZPTE_IHOvVxIH4", authDomain: "burger-piola-tracking.firebaseapp.com", databaseURL: "https://burger-piola-tracking-default-rtdb.firebaseio.com", projectId: "burger-piola-tracking", storageBucket: "burger-piola-tracking.firebasestorage.app", messagingSenderId: "399109949329", appId: "1:399109949329:web:3fd6dbeeaa4dc2a5773c30" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
         let historialEntregados = []; 
+        let cadetesAutorizados = {};
+        let viajesFinalizados = [];
         let mapaGlobal = null; 
         let marcadoresMotos = {}; 
         const LAT_LOCAL = -33.131058; const LNG_LOCAL = -64.340524; 
@@ -193,7 +236,7 @@
                     attribution: 'Tiles &copy; Esri'
                 }).addTo(mapaGlobal);
                 
-                escucharPedidos(); escucharFlota(); 
+                escucharPedidos(); escucharFlota(); escucharCadetesAutorizados();
             }
         };
 
@@ -206,6 +249,134 @@
         };
 
         window.mostrarToast = function(mensaje, color) { const toast = document.getElementById('toast'); toast.innerHTML = mensaje; toast.style.background = color; toast.style.display = 'block'; setTimeout(() => toast.style.display = 'none', 4000); }
+
+        document.getElementById('filtro-historial-cadete').addEventListener('change', renderizarHistorialCadetes);
+
+        function escucharCadetesAutorizados() {
+            onValue(ref(db, 'cadetes_autorizados'), (snapshot) => {
+                cadetesAutorizados = snapshot.exists() ? snapshot.val() : {};
+                const selector = document.getElementById('filtro-historial-cadete');
+                const seleccionado = selector.value;
+                selector.replaceChildren(new Option('Seleccioná un cadete', ''));
+
+                Object.entries(cadetesAutorizados)
+                    .sort((a, b) => (a[1].nombre || a[0]).localeCompare(b[1].nombre || b[0], 'es'))
+                    .forEach(([usuario, cadete]) => selector.add(new Option(`${cadete.nombre || usuario} (@${usuario})`, usuario)));
+
+                if (seleccionado && cadetesAutorizados[seleccionado]) selector.value = seleccionado;
+                renderizarHistorialCadetes();
+            });
+        }
+
+        function renderizarHistorialCadetes() {
+            const lista = document.getElementById('lista-historial-cadetes');
+            const filtro = document.getElementById('filtro-historial-cadete').value;
+            document.getElementById('historial-total-cadetes').textContent = String(Object.keys(cadetesAutorizados).length);
+            lista.replaceChildren();
+
+            if (!filtro) {
+                document.getElementById('historial-total-viajes').textContent = '—';
+                const mensaje = document.createElement('p');
+                mensaje.className = 'historial-vacio';
+                mensaje.textContent = Object.keys(cadetesAutorizados).length ? 'Seleccioná un cadete para ver sus viajes entregados.' : 'Todavía no hay cadetes registrados.';
+                lista.append(mensaje);
+                return;
+            }
+
+            const cadete = cadetesAutorizados[filtro] || {};
+            const grupo = {
+                usuario: filtro,
+                nombre: cadete.nombre || filtro,
+                moto: cadete.moto || '',
+                viajes: viajesFinalizados.filter(viaje => (viaje.repartidor || '') === filtro)
+            };
+            document.getElementById('historial-total-viajes').textContent = String(grupo.viajes.length);
+
+            [grupo].forEach(grupo => {
+                const seccion = document.createElement('section');
+                seccion.className = 'historial-grupo';
+                const encabezado = document.createElement('div');
+                encabezado.className = 'historial-cadete';
+                const identidad = document.createElement('div');
+                const nombre = document.createElement('strong');
+                nombre.textContent = grupo.nombre;
+                const usuario = document.createElement('small');
+                usuario.textContent = `@${grupo.usuario}${grupo.moto ? ` · ${grupo.moto}` : ''}`;
+                identidad.append(nombre, usuario);
+                const cantidad = document.createElement('span');
+                cantidad.className = 'historial-cantidad';
+                cantidad.textContent = `${grupo.viajes.length} ${grupo.viajes.length === 1 ? 'viaje' : 'viajes'}`;
+                encabezado.append(identidad, cantidad);
+                seccion.append(encabezado);
+
+                if (!grupo.viajes.length) {
+                    const vacio = document.createElement('p');
+                    vacio.className = 'historial-vacio';
+                    vacio.textContent = 'Sin viajes entregados.';
+                    seccion.append(vacio);
+                }
+
+                grupo.viajes.forEach(viaje => {
+                    const tarjeta = document.createElement('article');
+                    tarjeta.className = 'historial-viaje';
+                    const cabecera = document.createElement('div');
+                    cabecera.className = 'historial-viaje-cabecera';
+                    const codigo = document.createElement('span');
+                    codigo.textContent = viaje.codigo || 'Viaje';
+                    const fecha = document.createElement('time');
+                    const marcaTiempo = Number(viaje.timestamp);
+                    fecha.dateTime = Number.isFinite(marcaTiempo) ? new Date(marcaTiempo).toISOString() : '';
+                    fecha.textContent = Number.isFinite(marcaTiempo) ? new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeStyle: 'short' }).format(marcaTiempo) : 'Fecha no disponible';
+                    cabecera.append(codigo, fecha);
+                    const detalle = document.createElement('p');
+                    const origen = viaje.origen || 'Punto de retiro';
+                    const destino = viaje.destino || viaje.direccion || 'Destino no disponible';
+                    const precio = Number.isFinite(Number(viaje.precio)) ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(viaje.precio)) : 'Sin precio';
+                    detalle.textContent = `${origen} → ${destino} · ${viaje.detalle || 'Envío'} · ${precio}`;
+                    tarjeta.append(cabecera, detalle);
+                    seccion.append(tarjeta);
+                });
+
+                lista.append(seccion);
+            });
+        }
+
+        window.crearCadete = async function() {
+            const usuario = document.getElementById('nuevo-cadete-usuario').value.trim().toLowerCase();
+            const nombre = document.getElementById('nuevo-cadete-nombre').value.trim();
+            const moto = document.getElementById('nuevo-cadete-moto').value.trim();
+            const clave = document.getElementById('nuevo-cadete-clave').value;
+            const btn = document.getElementById('btn-crear-cadete');
+
+            if (!/^[a-z0-9_-]{3,30}$/.test(usuario)) return alert("El usuario debe tener entre 3 y 30 caracteres: letras sin tilde, números, guion o guion bajo.");
+            if (!nombre || !moto) return alert("Completá el nombre y el vehículo del repartidor.");
+            if (clave.length < 6) return alert("La contraseña debe tener al menos 6 caracteres.");
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CREANDO...';
+
+            try {
+                const cadeteRef = ref(db, 'cadetes_autorizados/' + usuario);
+                const existente = await get(cadeteRef);
+                if (existente.exists()) {
+                    alert("Ese usuario ya está registrado. Elegí otro.");
+                    return;
+                }
+
+                await set(cadeteRef, { nombre, moto, clave });
+                document.getElementById('nuevo-cadete-usuario').value = '';
+                document.getElementById('nuevo-cadete-nombre').value = '';
+                document.getElementById('nuevo-cadete-moto').value = '';
+                document.getElementById('nuevo-cadete-clave').value = '';
+                mostrarToast("<i class='fas fa-check-circle'></i> Repartidor creado. Ya puede ingresar.", "var(--verde)");
+            } catch (error) {
+                console.error("Error creando repartidor:", error);
+                alert("No se pudo crear el usuario. Verificá la conexión y los permisos de escritura de Firebase.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-user-check"></i> CREAR USUARIO';
+            }
+        };
 
         window.borrarPedido = async function(codigo, idCadete = null) { 
             if(confirm(`¿Estás seguro de cancelar y borrar el viaje ${codigo}?`)) { 
@@ -323,9 +494,15 @@
         function escucharPedidos() {
             onValue(ref(db, 'bolsa_pedidos'), (snapshot) => {
                 const lista = document.getElementById('lista-pedidos'); lista.innerHTML = "";
-                if (!snapshot.exists()) return lista.innerHTML = "<p style='color: #888; text-align: center;'>Radar despejado.</p>";
+                if (!snapshot.exists()) {
+                    viajesFinalizados = [];
+                    renderizarHistorialCadetes();
+                    return lista.innerHTML = "<p style='color: #888; text-align: center;'>Radar despejado.</p>";
+                }
 
                 const pedidosArray = []; snapshot.forEach(child => { pedidosArray.push(child.val()); }); pedidosArray.sort((a,b) => b.timestamp - a.timestamp);
+                viajesFinalizados = pedidosArray.filter(pedido => pedido.estado === 'entregado');
+                renderizarHistorialCadetes();
 
                 pedidosArray.forEach(ped => {
                     if(ped.estado === "entregado") {
